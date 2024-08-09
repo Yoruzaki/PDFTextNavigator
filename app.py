@@ -1,8 +1,23 @@
 from flask import Flask, request, jsonify, send_file
 import fitz  # PyMuPDF
 import os
+import boto3
+from botocore.exceptions import NoCredentialsError
 
 app = Flask(__name__)
+
+# Cloudflare R2 credentials
+r2_access_key = 'M1862jBiU1Fpis-WqLlE1cvwy_4vnYYiGjygDP11'  
+r2_secret_key = ''  
+r2_endpoint_url = 'https://your-account-id.r2.cloudflarestorage.com'
+r2_bucket_name = 'pdftext'
+
+# Initialize R2 client
+s3_client = boto3.client('s3',
+    endpoint_url=r2_endpoint_url,
+    aws_access_key_id=r2_access_key,
+    aws_secret_access_key=r2_secret_key
+)
 
 def extract_text(pdf_path, output_txt_path):
     try:
@@ -37,14 +52,21 @@ def upload_file():
     
     if file and file.filename.endswith('.pdf'):
         filename = file.filename
-        pdf_path = os.path.join('uploads', filename)
-        txt_path = os.path.join('uploads', filename.rsplit('.', 1)[0] + '.txt')
+        pdf_path = os.path.join('/tmp', filename)  # Temporary path for processing
+        txt_path = os.path.join('/tmp', filename.rsplit('.', 1)[0] + '.txt')
         
         file.save(pdf_path)
         
         success = extract_text(pdf_path, txt_path)
         if success:
-            return send_file(txt_path, as_attachment=True)
+            # Upload the text file to R2
+            try:
+                s3_client.upload_file(txt_path, r2_bucket_name, filename.rsplit('.', 1)[0] + '.txt')
+                # Return the file URL from R2
+                file_url = f"{r2_endpoint_url}/{r2_bucket_name}/{filename.rsplit('.', 1)[0] + '.txt'}"
+                return jsonify({"file_url": file_url})
+            except NoCredentialsError:
+                return jsonify({"error": "Credentials not available"}), 500
         else:
             return jsonify({"error": "Failed to extract text"}), 500
     
@@ -58,17 +80,18 @@ def search_text():
     if not search_term:
         return jsonify({"error": "Search term is required"}), 400
     
-    folder_path = 'uploads'
-    
-    if not os.path.exists(folder_path):
-        return jsonify({"error": "Uploads folder does not exist"}), 404
-    
     results = []
     try:
-        for filename in os.listdir(folder_path):
+        # List all files in the R2 bucket
+        response = s3_client.list_objects_v2(Bucket=r2_bucket_name)
+        
+        for obj in response.get('Contents', []):
+            filename = obj['Key']
             if filename.endswith('.txt'):
-                file_path = os.path.join(folder_path, filename)
-                with open(file_path, 'r', encoding='utf-8') as f:
+                # Download the file from R2
+                s3_client.download_file(r2_bucket_name, filename, filename)
+                
+                with open(filename, 'r', encoding='utf-8') as f:
                     for line_num, line in enumerate(f, start=1):
                         if search_term.lower() in line.lower():
                             results.append({
@@ -76,6 +99,8 @@ def search_text():
                                 'line': line_num,
                                 'content': line.strip()
                             })
+                
+                os.remove(filename)  # Remove the file after processing
         
         return jsonify({"results": results})
     
@@ -84,6 +109,4 @@ def search_text():
         return jsonify({"error": "Failed to search text"}), 500
 
 if __name__ == '__main__':
-    if not os.path.exists('uploads'):
-        os.makedirs('uploads')
     app.run(debug=True)
