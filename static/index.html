@@ -6,23 +6,18 @@
     <title>PDF Text Extractor</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css" rel="stylesheet">
     <link href="/static/styles.css" rel="stylesheet">
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1 class="text-3xl font-bold mb-4">Upload PDF to Extract Text</h1>
-        <form id="upload-form" enctype="multipart/form-data" class="mb-8">
-            <input type="file" id="file" name="file" accept=".pdf" required class="input mb-4">
-            <button type="submit" class="button">Upload and Extract</button>
-        </form>
-        <div id="result" class="result"></div>
-        
-        <h2 class="text-2xl font-semibold mb-4">Search Text in All Extracted Files</h2>
-        <form id="search-form">
-            <input type="text" id="search-term" name="search-term" placeholder="Enter search term" required class="input mb-4">
-            <button type="submit" class="button">Search</button>
-        </form>
-        <div id="search-result" class="result"></div>
-    </div>
-    <script src="/static/scripts.js"></script>
+    <div id="app"></div>
+    <footer class="footer">
+        <p class="text-gray-500 text-sm">© 2024 Yoruzaki. All rights reserved.</p>
+    </footer>
+    <!-- Include the main React script -->
+    <script type="text/babel" src="/static/scripts.js"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@ body {
     font-family: 'Arial', sans-serif; /* Modern font */
 }
 
+/* Container Styles */
 .container {
     max-width: 800px;
     margin: auto;
@@ -14,7 +15,7 @@ body {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
 }
 
-/* Input styles */
+/* Input Styles */
 .input {
     border: 1px solid #4a5568; /* Subtle border */
     border-radius: 0.375rem; /* Rounded corners */
@@ -29,7 +30,7 @@ body {
     color: #a0aec0; /* Lighter placeholder text color */
 }
 
-/* Button styles */
+/* Button Styles */
 .button {
     background: #3182ce; /* Primary button color */
     color: #edf2f7; /* Light text color for button */
@@ -37,14 +38,15 @@ body {
     border: none; /* Remove default border */
     border-radius: 0.375rem; /* Rounded corners */
     cursor: pointer; /* Pointer cursor on hover */
-    transition: background 0.2s; /* Smooth background color transition */
+    transition: background 0.2s, transform 0.2s; /* Smooth background color and transform transition */
 }
 
 .button:hover {
     background: #2b6cb0; /* Darker button color on hover */
+    transform: scale(1.05); /* Slightly enlarge button on hover */
 }
 
-/* Result styles */
+/* Result Styles */
 .result {
     margin-top: 1rem; /* Space above results */
 }
@@ -52,4 +54,15 @@ body {
 .result div {
     padding: 0.5rem; /* Padding inside result div */
     border-bottom: 1px solid #4a5568; /* Bottom border for result divs */
+}
+
+/* Footer Styles */
+.footer {
+    background: #2d3748; /* Dark footer background */
+    border-top: 0px solid #4a5568; /* Subtle top border */
+    padding: 0rem 0; /* Padding for footer */
+    text-align: center; /* Center align text */
+    position: absolute;
+    bottom: 0;
+    width: 100%;
 }
