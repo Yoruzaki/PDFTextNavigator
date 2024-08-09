@@ -1,22 +1,19 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 import fitz  # PyMuPDF
-import os
 import boto3
-from botocore.exceptions import NoCredentialsError
+from botocore.exceptions import NoCredentialsError, ClientError
+from config import CLOUD_FLARE_R2_ACCESS_KEY_ID, CLOUD_FLARE_R2_SECRET_ACCESS_KEY, CLOUD_FLARE_R2_BUCKET, CLOUD_FLARE_R2_ENDPOINT
+import tempfile
+import os
 
 app = Flask(__name__)
 
-# Cloudflare R2 credentials
-r2_access_key = 'M1862jBiU1Fpis-WqLlE1cvwy_4vnYYiGjygDP11'  
-r2_secret_key = ''  
-r2_endpoint_url = 'https://your-account-id.r2.cloudflarestorage.com'
-r2_bucket_name = 'pdftext'
-
-# Initialize R2 client
-s3_client = boto3.client('s3',
-    endpoint_url=r2_endpoint_url,
-    aws_access_key_id=r2_access_key,
-    aws_secret_access_key=r2_secret_key
+# Initialize boto3 client for Cloudflare R2
+s3_client = boto3.client(
+    's3',
+    endpoint_url=CLOUD_FLARE_R2_ENDPOINT,
+    aws_access_key_id=CLOUD_FLARE_R2_ACCESS_KEY_ID,
+    aws_secret_access_key=CLOUD_FLARE_R2_SECRET_ACCESS_KEY
 )
 
 def extract_text(pdf_path, output_txt_path):
@@ -26,15 +23,15 @@ def extract_text(pdf_path, output_txt_path):
         for page_num in range(len(doc)):
             page = doc.load_page(page_num)
             full_text += (page.get_text() or '') + '\n'
-        
+
         # Write the extracted text to a file
         with open(output_txt_path, 'w', encoding='utf-8') as f:
             f.write(full_text)
-        
+
         return True
-    
+
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred during text extraction: {e}")
         return False
 
 @app.route('/')
@@ -45,67 +42,67 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
-    
+
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    
+
     if file and file.filename.endswith('.pdf'):
-        filename = file.filename
-        pdf_path = os.path.join('/tmp', filename)  # Temporary path for processing
-        txt_path = os.path.join('/tmp', filename.rsplit('.', 1)[0] + '.txt')
-        
-        file.save(pdf_path)
-        
-        success = extract_text(pdf_path, txt_path)
-        if success:
-            # Upload the text file to R2
-            try:
-                s3_client.upload_file(txt_path, r2_bucket_name, filename.rsplit('.', 1)[0] + '.txt')
-                # Return the file URL from R2
-                file_url = f"{r2_endpoint_url}/{r2_bucket_name}/{filename.rsplit('.', 1)[0] + '.txt'}"
-                return jsonify({"file_url": file_url})
-            except NoCredentialsError:
-                return jsonify({"error": "Credentials not available"}), 500
-        else:
-            return jsonify({"error": "Failed to extract text"}), 500
-    
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            pdf_path = os.path.join(tmpdirname, file.filename)
+            txt_path = os.path.join(tmpdirname, file.filename.rsplit('.', 1)[0] + '.txt')
+
+            file.save(pdf_path)
+            print(f"PDF saved to {pdf_path}")
+
+            success = extract_text(pdf_path, txt_path)
+            if success:
+                try:
+                    s3_client.upload_file(txt_path, CLOUD_FLARE_R2_BUCKET, file.filename.rsplit('.', 1)[0] + '.txt')
+                    print(f"Uploaded text file to bucket '{CLOUD_FLARE_R2_BUCKET}' with key '{file.filename.rsplit('.', 1)[0] + '.txt'}'")
+                    return jsonify({"message": "File uploaded successfully"}), 200
+                except NoCredentialsError:
+                    print("Credentials not available.")
+                    return jsonify({"error": "Credentials not available"}), 500
+                except ClientError as e:
+                    print(f"Client error occurred: {e}")
+                    return jsonify({"error": f"Client error occurred: {e}"}), 500
+                except Exception as e:
+                    print(f"Failed to upload file: {e}")
+                    return jsonify({"error": f"Failed to upload file: {e}"}), 500
+            else:
+                print("Failed to extract text.")
+                return jsonify({"error": "Failed to extract text"}), 500
+
     return jsonify({"error": "Invalid file format"}), 400
 
 @app.route('/search', methods=['POST'])
 def search_text():
     data = request.json
     search_term = data.get('searchTerm')
-    
+
     if not search_term:
         return jsonify({"error": "Search term is required"}), 400
-    
+
     results = []
     try:
-        # List all files in the R2 bucket
-        response = s3_client.list_objects_v2(Bucket=r2_bucket_name)
-        
-        for obj in response.get('Contents', []):
-            filename = obj['Key']
-            if filename.endswith('.txt'):
-                # Download the file from R2
-                s3_client.download_file(r2_bucket_name, filename, filename)
-                
-                with open(filename, 'r', encoding='utf-8') as f:
-                    for line_num, line in enumerate(f, start=1):
-                        if search_term.lower() in line.lower():
-                            results.append({
-                                'filename': filename,
-                                'line': line_num,
-                                'content': line.strip()
-                            })
-                
-                os.remove(filename)  # Remove the file after processing
-        
+        for obj in s3_client.list_objects_v2(Bucket=CLOUD_FLARE_R2_BUCKET).get('Contents', []):
+            if obj['Key'].endswith('.txt'):
+                txt_file = s3_client.get_object(Bucket=CLOUD_FLARE_R2_BUCKET, Key=obj['Key'])
+                content = txt_file['Body'].read().decode('utf-8')
+
+                for line_num, line in enumerate(content.split('\n'), start=1):
+                    if search_term.lower() in line.lower():
+                        results.append({
+                            'filename': obj['Key'],
+                            'line': line_num,
+                            'content': line.strip()
+                        })
+
         return jsonify({"results": results})
-    
+
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        print(f"An unexpected error occurred during search: {e}")
         return jsonify({"error": "Failed to search text"}), 500
 
 if __name__ == '__main__':
