@@ -1,0 +1,55 @@
+/* General Styles */
+body {
+    background: #1a202c; /* Dark background */
+    color: #edf2f7; /* Light text color */
+    font-family: 'Arial', sans-serif; /* Modern font */
+}
+
+.container {
+    max-width: 800px;
+    margin: auto;
+    padding: 2rem;
+    background: #2d3748; /* Dark container background */
+    border-radius: 12px; /* Rounded corners */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+}
+
+/* Input styles */
+.input {
+    border: 1px solid #4a5568; /* Subtle border */
+    border-radius: 0.375rem; /* Rounded corners */
+    padding: 0.75rem; /* Padding for input */
+    background: #1a202c; /* Dark background for inputs */
+    color: #edf2f7; /* Light text color for inputs */
+    width: 100%; /* Full width */
+    margin-bottom: 1rem; /* Space below input */
+}
+
+.input::placeholder {
+    color: #a0aec0; /* Lighter placeholder text color */
+}
+
+/* Button styles */
+.button {
+    background: #3182ce; /* Primary button color */
+    color: #edf2f7; /* Light text color for button */
+    padding: 0.75rem 1.5rem; /* Padding for button */
+    border: none; /* Remove default border */
+    border-radius: 0.375rem; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    transition: background 0.2s; /* Smooth background color transition */
+}
+
+.button:hover {
+    background: #2b6cb0; /* Darker button color on hover */
+}
+
+/* Result styles */
+.result {
+    margin-top: 1rem; /* Space above results */
+}
+
+.result div {
+    padding: 0.5rem; /* Padding inside result div */
+    border-bottom: 1px solid #4a5568; /* Bottom border for result divs */
+}
